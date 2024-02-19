@@ -1,44 +1,44 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from state import StateMachine, State
+    from scene import StateMachine, Scene
 
 from abc import ABC, abstractmethod
 
 
 class Game(ABC):
-    start_state_id = ""
+    start_scene_id = ""
 
     def __init__(self, statemachine: StateMachine):
-        self._state_id = self.start_state_id
+        self._scene_id = self.start_scene_id
         self.statemachine = statemachine
 
     @property
-    def state_id(self):
-        return self._state_id
+    def scene_id(self):
+        return self._scene_id
 
-    @state_id.setter
-    def state_id(self, id: str):
-        if id not in self.statemachine.states:
-            raise RuntimeError(f"Cannot set state id to invalid state id {self.state_id}")
-        self._state_id = id
+    @scene_id.setter
+    def scene_id(self, id: str):
+        if id not in self.statemachine.scenes:
+            raise RuntimeError(f"Cannot set scene id to invalid scene id {self.scene_id}")
+        self._scene_id = id
     @property
-    def state(self):
-        if self._state_id not in self.statemachine.states:
-            raise RuntimeError(f"Game has invalid state id {self._state_id}")
-        return self.statemachine.states[self._state_id]
+    def scene(self):
+        if self._scene_id not in self.statemachine.scenes:
+            raise RuntimeError(f"Game has invalid scene id {self._scene_id}")
+        return self.statemachine.scenes[self._scene_id]
 
     def update(self) -> None:
         # Update game
-        self.state.update()
+        self.scene.update()
 
         # Transition if needed
-        new_id = self.state.transition(self)
-        if new_id != self._state_id:
-            old_state = self.state
-            self.state.leave()
-            self.state_id = new_id
-            self.state.enter(old_state)
+        new_id = self.scene.transition(self)
+        if new_id != self._scene_id:
+            old_scene = self.scene
+            self.scene.leave()
+            self.scene_id = new_id
+            self.scene.enter(old_scene)
 
     @abstractmethod
     def run(self) -> None:

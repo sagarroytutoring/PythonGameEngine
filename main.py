@@ -1,8 +1,8 @@
-import state
+import scene
 import turtle_game
 from dataclasses import dataclass
 
-sm = state.StateMachine()
+sm = scene.StateMachine()
 
 
 @dataclass
@@ -10,10 +10,10 @@ class PlayData:
     pass
 
 @sm.register("play")
-class Gameplay(state.State):
+class Gameplay(scene.Scene):
     data = PlayData
 
-    def enter(self, leaving: state.State) -> None:
+    def enter(self, leaving: scene.Scene) -> None:
         pass
 
     def update(self) -> None:
@@ -28,10 +28,10 @@ class DeathData:
     pass
 
 @sm.register("deathscreen")
-class Death(state.State):
+class Death(scene.Scene):
     data = DeathData
 
-    def enter(self, leaving: state.State) -> None:
+    def enter(self, leaving: scene.Scene) -> None:
         pass
 
     def update(self) -> None:
@@ -46,10 +46,10 @@ class LeaderboardData:
     pass
 
 @sm.register("leaderboard")
-class Leaderboard(state.State):
+class Leaderboard(scene.Scene):
     data = LeaderboardData
 
-    def enter(self, leaving: state.State) -> None:
+    def enter(self, leaving: scene.Scene) -> None:
         pass
 
     def update(self) -> None:
@@ -60,7 +60,7 @@ class Leaderboard(state.State):
 
 
 class FlappyBird(turtle_game.TurtleGame):
-    start_state_id = "play"
+    start_scene_id = "play"
 
 
 def main():

@@ -10,28 +10,28 @@ import inspect
 
 class StateMachine(ABC):
     """
-    State machine for a game with multiple states
+    State machine for a game with multiple scenes
     """
 
     def __init__(self):
-        self.states: dict[str, "State"] = {}
+        self.scenes: dict[str, "Scene"] = {}
 
-    def register(self, id: str) -> Callable[[Type["State"]], Type["State"]]:
+    def register(self, id: str) -> Callable[[Type["Scene"]], Type["Scene"]]:
         """
-        Register a class as a state in this state machine.
+        Register a class as a scene in this state machine.
 
         Used as a decorator
-        :param id: ID to register state under
+        :param id: ID to register scene under
         :return: Decorator for class
         """
 
-        def dec(cls: Type[State]) -> Type[State]:
-            if not issubclass(cls, State):
-                raise TypeError("Class must be a subclass of State")
+        def dec(cls: Type[Scene]) -> Type[Scene]:
+            if not issubclass(cls, Scene):
+                raise TypeError("Class must be a subclass of Scene")
             if cls.data is None:
-                raise TypeError("State must have a data class attribute")
+                raise TypeError("Scene must have a data class attribute")
 
-            self.states[id] = cls()
+            self.scenes[id] = cls()
 
             cls.id = id
             cls.transition_conditions = {
@@ -44,26 +44,26 @@ class StateMachine(ABC):
         return dec
 
 
-transition_condition_type = Callable[["State", Game], bool]
-def transition_condition(state_id: str) -> Callable[[transition_condition_type], transition_condition_type]:
+transition_condition_type = Callable[["Scene", Game], bool]
+def transition_condition(scene_id: str) -> Callable[[transition_condition_type], transition_condition_type]:
     def dec(method: transition_condition_type) -> transition_condition_type:
-        method._transition_cond_for = state_id
+        method._transition_cond_for = scene_id
         return method
     return dec
 
 
-class State(ABC):
-    instance: Optional["State"] = None
+class Scene(ABC):
+    instance: Optional["Scene"] = None
     data: Optional[type] = None
 
     # This class attributse are automatically added when the class is registered, so no need to define it for your subclasses
     id: str
-    transition_conditions: dict[str, list[Callable[["State"], bool]]]
+    transition_conditions: dict[str, list[Callable[["Scene"], bool]]]
 
-    # Since each state is just convenient way to wrap several functions, it shouldn't have multiple instances
+    # Since each scene is just convenient way to wrap several functions, it shouldn't have multiple instances
     def __new__(cls):
         if cls.instance is None:
-            cls.instance = super(State, cls).__new__(cls)
+            cls.instance = super(Scene, cls).__new__(cls)
             return cls.instance
         raise RuntimeError(f"Cannot make another instance of {cls.__name__}")
 
@@ -72,24 +72,21 @@ class State(ABC):
 
     def transition(self, game: Game) -> str:
         """
-        Transition function for a state. Returns id of new state
+        Transition function for a scene. Returns id of new scene (or the same scene)
 
         :param game: The current game
-        :return: The state id of the new state
+        :return: The scene id of the new scene
         """
-        for state_id, conditions in self.transition_conditions.items():
+        for scene_id, conditions in self.transition_conditions.items():
             if any(condition(self) for condition in conditions):
-                return state_id
+                return scene_id
         return self.id
 
-    @abstractmethod
-    def enter(self, leaving: "State") -> None:
+    def enter(self, leaving: "Scene") -> None:
         pass
 
-    @abstractmethod
     def update(self) -> None:
         pass
 
-    @abstractmethod
     def leave(self) -> None:
         pass

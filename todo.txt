@@ -12,5 +12,5 @@ Misc:
     - e.g.: don't make something a required abstract method until it has to be
 
 Todo:
-- make git repo
-- rename state to scene
+- make git repo (DONE)
+- rename state to scene (DONE)
