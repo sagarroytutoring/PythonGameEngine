@@ -18,3 +18,4 @@ Misc:
 Todo:
 - make git repo (DONE)
 - rename state to scene (DONE)
+- make system for scenes to hand data over to new scenes (DONE)
