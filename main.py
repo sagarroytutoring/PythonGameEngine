@@ -13,15 +13,6 @@ class PlayData:
 class Gameplay(scene.Scene):
     data = PlayData
 
-    def enter(self, leaving: scene.Scene) -> None:
-        pass
-
-    def update(self) -> None:
-        pass
-
-    def leave(self) -> None:
-        pass
-
 
 @dataclass
 class DeathData:
@@ -31,15 +22,6 @@ class DeathData:
 class Death(scene.Scene):
     data = DeathData
 
-    def enter(self, leaving: scene.Scene) -> None:
-        pass
-
-    def update(self) -> None:
-        pass
-
-    def leave(self) -> None:
-        pass
-
 
 @dataclass
 class LeaderboardData:
@@ -48,15 +30,6 @@ class LeaderboardData:
 @sm.register("leaderboard")
 class Leaderboard(scene.Scene):
     data = LeaderboardData
-
-    def enter(self, leaving: scene.Scene) -> None:
-        pass
-
-    def update(self) -> None:
-        pass
-
-    def leave(self) -> None:
-        pass
 
 
 class FlappyBird(turtle_game.TurtleGame):

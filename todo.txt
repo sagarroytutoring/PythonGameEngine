@@ -1,10 +1,14 @@
 Features:
 - Camera
+    - can be fixed to something
+    - can be used to configure the screen
 - Vector field for forces
+- Mobile vs regular entities
 - Attach external forces to states or to entities
     - use case: gravity to attach to a state
     - use case: knockback on an entity
 - Better handling of events
+- Scene vs Environment???
 
 Misc:
 - No need to be too fancy off the get go:

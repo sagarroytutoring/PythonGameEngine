@@ -6,42 +6,10 @@ import os
 
 class Entity(ABC):
     def __init__(self, x=0, y=0, hitwidth=0, hitheight=0):
-        self._x = x
-        self._y = y
-        self._hitheight = hitheight
-        self._hitwidth = hitwidth
-
-    @property
-    def x(self):
-        return self._x
-
-    @x.setter
-    def x(self, val):
-        self._x = val
-
-    @property
-    def y(self):
-        return self._y
-
-    @y.setter
-    def y(self, val):
-        self._y = val
-
-    @property
-    def hitheight(self):
-        return self._hitheight
-
-    @hitheight.setter
-    def hitheight(self, val):
-        self._hitheight = val
-
-    @property
-    def hitwidth(self):
-        return self._hitheight
-
-    @hitwidth.setter
-    def hitwidth(self, val):
-        self._hitheight = val
+        self.x = x
+        self.y = y
+        self.hitheight = hitheight
+        self.hitwidth = hitwidth
 
 
 class AnimatedEntity(ABC, Entity):
