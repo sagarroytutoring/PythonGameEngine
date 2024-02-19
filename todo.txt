@@ -1,0 +1,16 @@
+Features:
+- Camera
+- Vector field for forces
+- Attach external forces to states or to entities
+    - use case: gravity to attach to a state
+    - use case: knockback on an entity
+- Better handling of events
+
+Misc:
+- No need to be too fancy off the get go:
+    - e.g.: don't make something a property until it has to be
+    - e.g.: don't make something a required abstract method until it has to be
+
+Todo:
+- make git repo
+- rename state to scene
