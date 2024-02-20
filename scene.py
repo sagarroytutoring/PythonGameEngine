@@ -9,11 +9,11 @@ import inspect
 from collections import defaultdict
 
 import util
-from data_store import DataStore
+import data_store
 
 
-transition_condition_type = Callable[[Type["Scene"], DataStore], bool]
-transition_act_type = Callable[[Type["Scene"], Type["Scene"], Game], None]
+transition_condition_type = Callable[[Type["Scene"], "Game"], bool]
+transition_act_type = Callable[[Type["Scene"], Type["Scene"], "Game"], None]
 
 
 class StateMachine:
@@ -23,7 +23,7 @@ class StateMachine:
 
     def __init__(self):
         self.scenes: set[Type[Scene]] = set()
-        self.store: Optional[DataStore] = None
+        self.store: Optional[data_store.DataStore] = None
         self._finalized = False
 
     def register(self, cls: Type[Scene]) -> Type[Scene]:
@@ -63,22 +63,22 @@ class StateMachine:
     def _remove_str_trans_conds(self, scenes_by_name: dict[str, Type[Scene]]):
         for scene_name, scene in scenes_by_name.items():
             for name, m in inspect.getmembers(scene):
-                if inspect.isfunction(m):
-                    if hasattr(m, "_transition_cond_for"):
+                if hasattr(m, "_transition_cond_for"):
+                    if inspect.isfunction(m):
                         # Replace string with scene if needed
                         if isinstance(m._transition_cond_for, str):
                             m._transition_cond_for = scenes_by_name[m._transition_cond_for]
 
                         # Add function to dictionary
                         scene.transition_conditions[m._transition_cond_for].add(m)
-                else:
-                    raise TypeError(f"Transition condition {name} in class {scene_name} is not a function")
+                    else:
+                        raise TypeError(f"Transition condition {name} in class {scene_name} is not a function")
 
     def _remove_str_trans_acts(self, scenes_by_name: dict[str, Type[Scene]]):
         for scene_name, scene in scenes_by_name.items():
             for name, m in inspect.getmembers(scene):
-                if inspect.isfunction(m):
-                    if hasattr(m, "_transition_act_entering") and m._transition_act_entering is not None:
+                if hasattr(m, "_transition_act_entering") and m._transition_act_entering is not None:
+                    if inspect.isfunction(m):
                         # Replace string with scene if needed
                         if isinstance(m._transition_act_entering, str):
                             try:
@@ -88,8 +88,11 @@ class StateMachine:
 
                         # Add function to dictionary
                         scene.enter_trans_acts[m._transition_act_entering].add(m)
+                    else:
+                        raise TypeError(f"Transition action {name} in class {scene_name} is not a function")
 
-                    if hasattr(m, "_transition_act_leaving") and m._transition_act_leaving is not None:
+                if hasattr(m, "_transition_act_leaving") and m._transition_act_leaving is not None:
+                    if inspect.isfunction(m):
                         # Replace string with scene if needed
                         if isinstance(m._transition_act_leaving, str):
                             try:
@@ -99,13 +102,20 @@ class StateMachine:
 
                         # Add function to dictionary
                         scene.leave_trans_acts[m._transition_act_leaving].add(m)
-                else:
-                    raise TypeError(f"Transition action {name} in class {scene_name} is not a function")
+                    else:
+                        raise TypeError(f"Transition action {name} in class {scene_name} is not a function")
 
 
 def transition_condition(scene: Type[Scene] | str) -> Callable[[transition_condition_type], transition_condition_type]:
     def dec(method: transition_condition_type) -> transition_condition_type:
         method._transition_cond_for = scene
+
+        def _associate_transition_action(act: transition_act_type) -> transition_act_type:
+            method._transition_action = act
+            return act
+        method.transition_action = _associate_transition_action
+        method._transition_action = None
+
         return method
     return dec
 
@@ -119,10 +129,11 @@ def transition_action(entering: Type[Scene] | str = None, leaving: Type[Scene] |
             raise ValueError("Leaving and entering cannot be strings when both are used")
 
         def dec(func: transition_act_type) -> transition_act_type:
+            # Decided to add to leaving because then I don't have to reorder the functions argumentss
             # Flipped because if "entering" is the state we are entering when we leave and vice versa
-            entering.enter_trans_acts[leaving].add(func)
+            leaving.leave_trans_acts[entering].add(func)
             # Just adding this for predictability:
-            func._transition_act_entering = leaving
+            func._transition_act_leaving = entering
             return func
     else:
         def dec(method: transition_act_type) -> transition_act_type:
@@ -134,6 +145,12 @@ def transition_action(entering: Type[Scene] | str = None, leaving: Type[Scene] |
 
 
 class Scene(ABC):
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        cls.transition_conditions = defaultdict(set, {scene: conds.copy() for scene, conds in cls.transition_conditions})
+        cls.enter_trans_acts = defaultdict(set, {scene: acts.copy() for scene, acts in cls.enter_trans_acts})
+        cls.leave_trans_acts = defaultdict(set, {scene: acts.copy() for scene, acts in cls.leave_trans_acts})
+
     # These class attributes are automatically added when the state machine is finalized, so no need to define it for your subclasses
     transition_conditions: defaultdict[Type[Scene], set[transition_condition_type]] = defaultdict(set)
     enter_trans_acts: defaultdict[Type[Scene], set[transition_act_type]] = defaultdict(set)
@@ -144,10 +161,13 @@ class Scene(ABC):
         raise RuntimeError(f"Cannot make instances of scenes")
 
     @classmethod
-    def _detect_transition(cls, data: DataStore) -> Type[Scene]:
+    def _detect_transition(cls, game: Game) -> Type[Scene]:
         for scene, conditions in cls.transition_conditions.items():
-            if any(condition(cls, data) for condition in conditions):
-                return scene
+            for condition in conditions:
+                if condition(cls, game):
+                    if condition._transition_action is not None:
+                        condition._transition_action(cls, scene, game)
+                    return scene
         return cls
 
     @classmethod
@@ -155,9 +175,9 @@ class Scene(ABC):
         curr_scene = game.scene
         if scene == curr_scene:
             return
-        game.scene.leave(game.data, scene)
+        game.scene.leave(game, scene)
         game.scene = scene
-        game.scene.enter(game.data, curr_scene)
+        game.scene.enter(game, curr_scene)
 
     @classmethod
     def transition(cls, game: Game) -> None:
@@ -167,13 +187,13 @@ class Scene(ABC):
         :param game: The current game
         :return: The scene _id of the new scene
         """
-        cls._transition_game(game, cls._detect_transition(game.data))
+        cls._transition_game(game, cls._detect_transition(game))
 
     @classmethod
     def enter(cls, game: Game, leaving: Optional[Type[Scene]] = None) -> None:
         for act in cls.enter_trans_acts[leaving]:
             act(cls, leaving, game)
-        game.data.transition(leaving, cls)
+        game.data.transition(game, leaving, cls)
 
     @classmethod
     def update(cls, game: Game = None) -> None:

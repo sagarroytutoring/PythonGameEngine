@@ -14,6 +14,9 @@ Features:
     - static scene data (attached to the scene instance, not destroyed when leaving the scene but only accessible when in the scene)
         - perhaps some fourth type that is available in multiple scenes, but not all?
     - game data (attached to the game/statemachine, available to every scene)
+- mutable and immutable access
+- somehow make a class for sidescroller (maybe a subclass of camera? or some sort of state?)
+    - also one for where the camera is locked to the player
 
 Misc:
 - No need to be too fancy off the get go:
@@ -24,8 +27,12 @@ Todo:
 - make git repo (DONE)
 - rename state to scene (DONE)
 - make system for scenes to hand data over to new scenes (DONE)
-- improve data store system (IN PROGRESS)
-- finish transition action system (IN PROGRESS)
+- improve data store system (DONE)
+- finish transition action system (DONE)
     - add transition action decorator to statemachine (DONE)
-- add feature to help with transition actions
+- add feature to help with transition actions (DONE)
+- add feature to register default factory for user data store transient attributes (DONE)
+- actions dependent on transition conditions (DONE)
+- make dedicated transition condition type to resolve warnings
 - testing, lots of testing
+- repackage as package

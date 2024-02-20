@@ -11,11 +11,11 @@ class Game(ABC):
     def __init__(self, storetype: Type, start_scene: Type[Scene]):
         self.data = data_store.DataStore(storetype)
         self.scene = start_scene
-        self.scene.enter(self.data)
+        self.scene.enter(self)
 
     def update(self) -> None:
         # Update game
-        self.scene.update()
+        self.scene.update(self)
 
         # Transition if needed
         self.scene.transition(self)
