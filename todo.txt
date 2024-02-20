@@ -9,6 +9,11 @@ Features:
     - use case: knockback on an entity
 - Better handling of events
 - Scene vs Environment???
+- Three types of data:
+    - transient scene data (created when entering scene, destroyed when leaving)
+    - static scene data (attached to the scene instance, not destroyed when leaving the scene but only accessible when in the scene)
+        - perhaps some fourth type that is available in multiple scenes, but not all?
+    - game data (attached to the game/statemachine, available to every scene)
 
 Misc:
 - No need to be too fancy off the get go:
@@ -19,3 +24,8 @@ Todo:
 - make git repo (DONE)
 - rename state to scene (DONE)
 - make system for scenes to hand data over to new scenes (DONE)
+- improve data store system (IN PROGRESS)
+- finish transition action system (IN PROGRESS)
+    - add transition action decorator to statemachine (DONE)
+- add feature to help with transition actions
+- testing, lots of testing
