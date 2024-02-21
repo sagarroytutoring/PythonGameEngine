@@ -1,4 +1,4 @@
-Features:
+Features To Add:
 - Camera
     - can be fixed to something
     - can be used to configure the screen
@@ -9,14 +9,17 @@ Features:
     - use case: knockback on an entity
 - Better handling of events
 - Scene vs Environment???
-- Three types of data:
-    - transient scene data (created when entering scene, destroyed when leaving)
-    - static scene data (attached to the scene instance, not destroyed when leaving the scene but only accessible when in the scene)
-        - perhaps some fourth type that is available in multiple scenes, but not all?
-    - game data (attached to the game/statemachine, available to every scene)
 - mutable and immutable access
 - somehow make a class for sidescroller (maybe a subclass of camera? or some sort of state?)
     - also one for where the camera is locked to the player
+- transition action ordering/reordering?
+- figure/shape/frame class to be used for sprites, shaped, and animation frames
+
+Features Added:
+- Three types of data:
+    - transient scene data (created when entering scene, destroyed when leaving)
+    - static scene data (attached to the scene(s), not destroyed when leaving the scene(s) but only accessible when in the scene(s))
+    - game data (attached to the game, available to every scene)
 
 Misc:
 - No need to be too fancy off the get go:
@@ -33,6 +36,15 @@ Todo:
 - add feature to help with transition actions (DONE)
 - add feature to register default factory for user data store transient attributes (DONE)
 - actions dependent on transition conditions (DONE)
-- make dedicated transition condition type to resolve warnings
+- make dedicated transition condition type to resolve warnings (DONE)
+- make dedicated transition action type (NOT NEEDED)
+- make transition action and transition condition systems better (DONE)
+    - registering a function as a transition action twice (DONE)
+    - registering multiple transition actions per condition (DONE)
+- refactor to remove statemachine class (DONE)
+    - instead of finalizing using statemachine, when a new class is made remove the strings from the previous classes in the init subclass (DONE)
+    - can use class attribute in scene base class to keep track of created classes by name (DONE)
+    - also have to keep track of classes referred to by name and methods for checking if all the strings have been resolved (DONE)
+- think of system for keeping docstrings when making transition actions/conditions
 - testing, lots of testing
 - repackage as package
