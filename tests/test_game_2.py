@@ -1,3 +1,7 @@
+"""
+    More thorough testing of transition condition and transition action system
+"""
+
 import sys
 
 import scene

@@ -14,6 +14,37 @@ Features To Add:
     - also one for where the camera is locked to the player
 - transition action ordering/reordering?
 - figure/shape/frame class to be used for sprites, shaped, and animation frames
+- think of system for keeping docstrings when making transition conditions
+
+- system for scheduled events
+    - for example a transition action that starts playing an animation
+        - maybe I can just make a function that starts an animation and run it in the transition action
+
+- entity system:
+    - entity class
+        - visible entity?
+        - animated entity?
+    - figure class
+        - can be a shape
+        - can have a picture
+    - animation class
+        - has multiple figures that it loops through
+    - entity state
+        - can change everything about an entity
+        - similar to scene system?
+            - maybe just make scenes for an entity
+                - then scenes would have to work for entity and game
+                - how would I pass in entity and game data at the same time?
+                - maybe make better system for contextual data access
+                    - combining data from different contexts (game AKA global, entity, environment, etc)
+                    - combining context
+                        - within a specific game scene and specific entity scene, attributes can only be accessed based on both
+                    - make it more clear what data can be accessed. maybe something to iterate over it to check a specific attribute for debugging reasons
+
+idea for multiple "contexts":
+    - for example, if we're looking at a game that is in a "Play" scene and within that an entity is in the "Dying" scene
+    - in this case, instead of passing a "game" object to all the scene methods like I do now, pass a context obj
+    - call: method(*pargs, contextobj)
 
 Features Added:
 - Three types of data:
@@ -45,6 +76,10 @@ Todo:
     - instead of finalizing using statemachine, when a new class is made remove the strings from the previous classes in the init subclass (DONE)
     - can use class attribute in scene base class to keep track of created classes by name (DONE)
     - also have to keep track of classes referred to by name and methods for checking if all the strings have been resolved (DONE)
-- think of system for keeping docstrings when making transition actions/conditions
+- make context class and integrate
+    - make context class (DONE)
+    - rename game to cursor
+    - integrate context class with scene code (pass that instead of cursor)
+    - rework update to update cursors in cursors
 - testing, lots of testing
 - repackage as package

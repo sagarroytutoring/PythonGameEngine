@@ -87,7 +87,6 @@ def transition_action(src: Type[Scene] | str = None, dest: Type[Scene] | str = N
 
 
     def dec(method: transition_act_type | TransitionContextStore) -> TransitionContextStore:
-        # Flipped it because if source is provided, then the decorated method will take in the current class (dest) first, and then source
         if not isinstance(method, TransitionContextStore):
             store = TransitionContextStore(method)
         else:

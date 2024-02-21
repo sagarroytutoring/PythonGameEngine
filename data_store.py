@@ -1,5 +1,5 @@
 from typing import Type, Optional, Any, Callable
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 from copy import deepcopy
 
 import game
@@ -7,8 +7,6 @@ import scene
 
 class DataStore:
     class _Accessor:
-        instances: dict[tuple["DataStore", Type["scene.Scene"]], "DataStore._Accessor"] = {}
-
         def __init__(self, store: "DataStore", sc: Type["scene.Scene"]):
             super().__setattr__('_store', store)
             super().__setattr__('_scene', sc)
@@ -47,17 +45,21 @@ class DataStore:
             setattr(self.storage_inst, field, deepcopy(default))
 
     def _assert_access_allowed(self, field: str, sc: Type["scene.Scene"]):
-        if not (isinstance(self.field_access[field], Access.game) or sc in self.field_access[field].args):
+        try:
+            access = self.field_access[field]
+        except KeyError:
+            raise AttributeError(f"Field {field} not present")
+        if not (isinstance(access, Access.game) or sc in access.args):
             raise TypeError(f"Scene {sc.__name__} cannot access field {field}")
 
-    def reset_transients(self, g: game.Game, sc: Type["scene.Scene"]):
+    def reset_transients(self, g: "game.Game", sc: Type["scene.Scene"]):
         for field in self.transients[sc]:
             if field in self.transient_factories:
                 setattr(self.storage_inst, field, self.transient_factories[field](g))
             else:
                 setattr(self.storage_inst, field, deepcopy(self.field_defaults[field]))
 
-    def transition(self, g: game.Game, leaving: Type["scene.Scene"], entering: Type["scene.Scene"]):
+    def transition(self, g: "game.Game", leaving: Type["scene.Scene"], entering: Type["scene.Scene"]):
         self.reset_transients(g, leaving)
         self.reset_transients(g, entering)
 
@@ -82,3 +84,48 @@ class Access:
             super().__init__(*args)
             self.factory = factory
     class game(_StoreArgs): pass
+
+
+class Context:
+    class _MultiAccessor:
+        def __init__(self, context: "Context"):
+            super().__setattr__('context', context)
+
+        def __getattr__(self, field: str):
+            key = self._guarded_which(field)
+            cursor = self.context[key]
+            return getattr(cursor.data[cursor.scene], field)
+
+        def __setattr__(self, field, value):
+            key = self._guarded_which(field)
+            cursor = self.context[key]
+            return setattr(cursor.data[cursor.scene], field, value)
+
+        def which(self, field: str) -> Optional[str]:
+            for key, cursor in reversed(self.context.cursors.items()):
+                try:
+                    # Check access is allowed
+                    getattr(cursor.data[cursor.scene], field)
+                    return key
+                except (TypeError, AttributeError):
+                    continue
+            return None
+
+        def _guarded_which(self, field: str) -> str:
+            key = self.which(field)
+            if key is None:
+                raise AttributeError(f"Field {field} is not accessible from this context")
+            return key
+
+    def __init__(self):
+        self.cursors: OrderedDict[str, game.Game] = OrderedDict()
+        self.data = self._MultiAccessor(self)
+
+    def add_cursor(self, key: str, cursor: "game.Game"):
+        self.cursors[key] = cursor
+
+    def pop_cursor(self) -> tuple[str, "game.Game"]:
+        return self.cursors.popitem()
+
+    def __getitem__(self, key: str) -> "game.Game":
+        return self.cursors[key]

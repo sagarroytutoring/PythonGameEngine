@@ -1,3 +1,7 @@
+"""
+    Initial testing of scene transitions
+"""
+
 from typing import Optional, Type
 
 import scene
@@ -10,7 +14,7 @@ import random
 def rand_prob(prob):
     return random.random() < prob
 
-# @sm.register
+
 class Play(scene.Scene):
     @scene.transition_condition("Death")
     def dead(cls, game):
@@ -33,7 +37,7 @@ class Play(scene.Scene):
         print("Now that you've seen the winners, let's play again.")
 
     @classmethod
-    def leave(cls, game: game.Game, entering: Optional[Type[scene.Scene]] = None) -> None:
+    def leave(cls, game, entering) -> None:
         super().leave(game, entering)
         print("Game over")
 
@@ -94,7 +98,7 @@ class Death(scene.Scene):
     def timed_out(cls, game):
         return time() - game.data[cls].start_time >= cls.TIMEOUT
 
-# @sm.register
+
 class Leaderboard(scene.Scene):
     @scene.transition_condition(Play)
     def restart(cls, data):
@@ -113,8 +117,6 @@ class Leaderboard(scene.Scene):
 def other_didnt_die(src, dest, game):
     print("You may have died, but here's some winners who didn't!")
 
-
-# sm.finalize()
 
 class GameData:
     health: int = 100,                      data_store.Access.transient(Play)
@@ -141,4 +143,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
