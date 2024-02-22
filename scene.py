@@ -1,16 +1,14 @@
 from __future__ import annotations
 from typing import Callable, Type, TYPE_CHECKING, Optional
 
-if TYPE_CHECKING:
-    from game import Game
-
 from abc import ABC, abstractmethod
 import inspect
 from collections import defaultdict
+import data_store
 
 
-transition_condition_type = Callable[[Type["Scene"], "Game"], bool]
-transition_act_type = Callable[[Type["Scene"], Type["Scene"], "Game"], None]
+transition_condition_type = Callable[[Type["Scene"], "Cursor"], bool]
+transition_act_type = Callable[[Type["Scene"], Type["Scene"], "Cursor"], None]
 
 
 class TransitionCondition:
@@ -33,8 +31,8 @@ class TransitionCondition:
             self.act.append(act)
         return act
 
-    def __call__(self, scene: Type[Scene], game: Game) -> bool:
-        return self.fun(scene, game)
+    def __call__(self, scene: Type[Scene], cursor: Cursor) -> bool:
+        return self.fun(scene, cursor)
 
 
 def transition_condition(dest: Type["Scene"] | str) -> Callable[[transition_condition_type], TransitionCondition]:
@@ -55,8 +53,8 @@ class TransitionContextStore:
             raise ValueError("Invalid type")
         self.contexts[type].append(scene)
 
-    def __call__(self, src: Type["Scene"], dest: Type["Scene"], game: Game):
-        self.act(src, dest, game)
+    def __call__(self, src: Type["Scene"], dest: Type["Scene"], cursor: Cursor):
+        self.act(src, dest, cursor)
 
 
 def transition_action(src: Type[Scene] | str = None, dest: Type[Scene] | str = None, context: int = TransitionContextStore.LEAVE) -> Callable[[transition_act_type | TransitionContextStore], transition_act_type | TransitionContextStore]:
@@ -153,45 +151,63 @@ class Scene(ABC):
         raise RuntimeError(f"Cannot make instances of scenes")
 
     @classmethod
-    def _detect_transition(cls, game: Game) -> Type[Scene]:
+    def _detect_transition(cls, cursor: Cursor) -> Type[Scene]:
         for scene, conditions in cls.transition_conditions.items():
             for condition in conditions:
-                if condition(cls, game):
+                if condition(cls, cursor):
                     for act in condition.act:
-                        act(cls, scene, game)
+                        act(cls, scene, cursor)
                     return scene
         return cls
 
     @classmethod
-    def _transition_game(cls, game: Game, scene: Optional[Type[Scene]]) -> None:
-        curr_scene = game.scene
+    def _transition_cursor(cls, cursor: Cursor, scene: Optional[Type[Scene]]) -> None:
+        curr_scene = cursor.scene
         if scene == curr_scene:
             return
-        game.scene.leave(game, scene)
-        game.scene = scene
-        game.scene.enter(game, curr_scene)
+        cursor.scene.leave(cursor, scene)
+        cursor.scene = scene
+        cursor.scene.enter(cursor, curr_scene)
 
     @classmethod
-    def transition(cls, game: Game) -> None:
+    def transition(cls, cursor: Cursor) -> None:
         """
-        Transition function for a scene. Changes game scene to new scene (or leaves it alone if no transition)
+        Transition function for a scene. Changes Global scene to new scene (or leaves it alone if no transition)
 
-        :param game: The current game
+        :param cursor: The current Global
         :return: The scene _id of the new scene
         """
-        cls._transition_game(game, cls._detect_transition(game))
+        cls._transition_cursor(cursor, cls._detect_transition(cursor))
 
     @classmethod
-    def enter(cls, game: Game, src: Optional[Type[Scene]] = None) -> None:
+    def enter(cls, cursor: Cursor, src: Optional[Type[Scene]] = None) -> None:
         for act in cls.enter_trans_acts[src]:
-            act(src, cls, game)
-        game.data.transition(game, src, cls)
+            act(src, cls, cursor)
+        cursor.data.transition(cursor, src, cls)
 
     @classmethod
-    def update(cls, game: Game) -> None:
+    def update(cls, cursor: Cursor) -> None:
         pass
 
     @classmethod
-    def leave(cls, game: Game, dest: Type[Scene]) -> None:
+    def leave(cls, cursor: Cursor, dest: Type[Scene]) -> None:
         for act in cls.leave_trans_acts[dest]:
-            act(cls, dest, game)
+            act(cls, dest, cursor)
+
+
+class Cursor(ABC):
+    def __init__(self, storetype: Type, start_scene: Type[Scene]):
+        self.data = data_store.DataStore(storetype)
+        self.scene = start_scene
+        self.scene.enter(self)
+
+    def update(self) -> None:
+        # Update Global
+        self.scene.update(self)
+
+        # Transition if needed
+        self.scene.transition(self)
+
+    @abstractmethod
+    def run(self) -> None:
+        pass

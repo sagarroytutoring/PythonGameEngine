@@ -2,8 +2,8 @@ from typing import Type, Optional, Any, Callable
 from collections import defaultdict, OrderedDict
 from copy import deepcopy
 
-import game
 import scene
+
 
 class DataStore:
     class _Accessor:
@@ -25,7 +25,7 @@ class DataStore:
         self.field_access: dict[str, access_types] = {}
         self.field_defaults: dict[str, Any] = {}
         self.transients: defaultdict[Type[scene.Scene], set] = defaultdict(set)
-        self.transient_factories: dict[str, Callable[[game.Game], Any]] = {}
+        self.transient_factories: dict[str, Callable[[scene.Cursor], Any]] = {}
         for field in cls.__annotations__:
             try:
                 default, access = getattr(cls, field)
@@ -36,7 +36,7 @@ class DataStore:
 
             self.field_access[field] = access
             self.field_defaults[field] = default
-            if isinstance(access, Access.transient):
+            if isinstance(access, Access.Transient):
                 for sc in access.args:
                     self.transients[sc].add(field)
                 if access.factory is not None:
@@ -49,19 +49,19 @@ class DataStore:
             access = self.field_access[field]
         except KeyError:
             raise AttributeError(f"Field {field} not present")
-        if not (isinstance(access, Access.game) or sc in access.args):
+        if not (isinstance(access, Access.Global) or sc in access.args):
             raise TypeError(f"Scene {sc.__name__} cannot access field {field}")
 
-    def reset_transients(self, g: "game.Game", sc: Type["scene.Scene"]):
+    def reset_transients(self, cur: "scene.Cursor", sc: Type["scene.Scene"]):
         for field in self.transients[sc]:
             if field in self.transient_factories:
-                setattr(self.storage_inst, field, self.transient_factories[field](g))
+                setattr(self.storage_inst, field, self.transient_factories[field](cur))
             else:
                 setattr(self.storage_inst, field, deepcopy(self.field_defaults[field]))
 
-    def transition(self, g: "game.Game", leaving: Type["scene.Scene"], entering: Type["scene.Scene"]):
-        self.reset_transients(g, leaving)
-        self.reset_transients(g, entering)
+    def transition(self, cur: "scene.Cursor", leaving: Type["scene.Scene"], entering: Type["scene.Scene"]):
+        self.reset_transients(cur, leaving)
+        self.reset_transients(cur, entering)
 
     def __getitem__(self, item: Type["scene.Scene"]):
         # Put accessors in dictionary to avoid reinstantiating every time an attribute is needed
@@ -72,18 +72,18 @@ class DataStore:
         return self.accessors[item]
 
 
-access_types = "Access.static | Access.transient | Access.game"
+access_types = "Access.Static | Access.Transient | Access.Global"
 class Access:
     class _StoreArgs:
         def __init__(self, *args):
             self.args: Optional[set] = set(args)
 
-    class static(_StoreArgs): pass
-    class transient(_StoreArgs):
+    class Static(_StoreArgs): pass
+    class Transient(_StoreArgs):
         def __init__(self, *args, factory=None):
             super().__init__(*args)
             self.factory = factory
-    class game(_StoreArgs): pass
+    class Global(_StoreArgs): pass
 
 
 class Context:
@@ -118,14 +118,14 @@ class Context:
             return key
 
     def __init__(self):
-        self.cursors: OrderedDict[str, game.Game] = OrderedDict()
+        self.cursors: OrderedDict[str, scene.Cursor] = OrderedDict()
         self.data = self._MultiAccessor(self)
 
-    def add_cursor(self, key: str, cursor: "game.Game"):
+    def add_cursor(self, key: str, cursor: "scene.Cursor"):
         self.cursors[key] = cursor
 
-    def pop_cursor(self) -> tuple[str, "game.Game"]:
+    def pop_cursor(self) -> tuple[str, "scene.Cursor"]:
         return self.cursors.popitem()
 
-    def __getitem__(self, key: str) -> "game.Game":
+    def __getitem__(self, key: str) -> "scene.Cursor":
         return self.cursors[key]

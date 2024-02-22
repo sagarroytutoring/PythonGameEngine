@@ -5,7 +5,6 @@
 import sys
 
 import scene
-import game
 import data_store
 
 
@@ -70,10 +69,10 @@ def act5(src, dest, game):
 
 
 class GameData:
-    num: int = 0,   data_store.Access.game()
+    num: int = 0,   data_store.Access.Global()
 
 
-class TestGame(game.Game):
+class TestGame(scene.Cursor):
     def run(self):
         while True:
             self.update()

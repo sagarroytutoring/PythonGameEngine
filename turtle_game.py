@@ -1,9 +1,8 @@
 import turtle
+import scene
 
-import game
 
-
-class TurtleGame(game.Game):
+class TurtleGame(scene.Cursor):
     update_interval = 10
 
     def run(self) -> None:

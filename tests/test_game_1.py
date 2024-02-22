@@ -5,7 +5,6 @@
 from typing import Optional, Type
 
 import scene
-import game
 import data_store
 from time import time
 import random
@@ -56,7 +55,7 @@ class Play(scene.Scene):
         return first_let
 
     @classmethod
-    def update(cls, game: game.Game) -> None:
+    def update(cls, game: scene.Cursor) -> None:
         print(f"There are {game.data[cls].enemies} enemies left")
         choice = cls.choose_attack_defend()
 
@@ -90,7 +89,7 @@ class Death(scene.Scene):
     TIMEOUT = 5
 
     @classmethod
-    def enter(cls, game: game.Game, leaving: Optional[Type[scene.Scene]] = None) -> None:
+    def enter(cls, game: scene.Cursor, leaving: Optional[Type[scene.Scene]] = None) -> None:
         super().enter(game, leaving)
         print("Enjoy 5 seconds of afterlife.")
 
@@ -105,7 +104,7 @@ class Leaderboard(scene.Scene):
         return True
 
     @classmethod
-    def update(cls, game: game.Game) -> None:
+    def update(cls, game: scene.Cursor) -> None:
         print("Here are the leaders:")
         for pos, (name, score) in enumerate(game.data[cls].topscores, start=1):
             print(f"{pos}. {name}\t{score}")
@@ -119,18 +118,18 @@ def other_didnt_die(src, dest, game):
 
 
 class GameData:
-    health: int = 100,                      data_store.Access.transient(Play)
-    enemies: int = 5,                       data_store.Access.transient(Play)
-    name: str = "",                         data_store.Access.game()
-    topscores: dict[str, int] = [],         data_store.Access.static(Play, Leaderboard)
-    start_time: float = -1,                 data_store.Access.transient(Play, Death, Leaderboard, factory=lambda _: time())
+    health: int = 100,                      data_store.Access.Transient(Play)
+    enemies: int = 5,                       data_store.Access.Transient(Play)
+    name: str = "",                         data_store.Access.Global()
+    topscores: dict[str, int] = [],         data_store.Access.Static(Play, Leaderboard)
+    start_time: float = -1,                 data_store.Access.Transient(Play, Death, Leaderboard, factory=lambda _: time())
 
-    # You can make config vars for a certain scene by making them static for that scene only
-    enemy_dmg_range: tuple[int, int] = (5, 10),     data_store.Access.static(Play)
-    enemy_hit_prob: float = 0.5,                    data_store.Access.static(Play)
+    # You can make config vars for a certain scene by making them Static for that scene only
+    enemy_dmg_range: tuple[int, int] = (5, 10),     data_store.Access.Static(Play)
+    enemy_hit_prob: float = 0.5,                    data_store.Access.Static(Play)
 
 
-class SampleGame(game.Game):
+class SampleGame(scene.Cursor):
     def run(self) -> None:
         while True:
             self.update()

@@ -2,11 +2,10 @@
     Testing of context object and data access from context
 """
 
-import game
 import data_store
 import scene
 
-class OuterCursor(game.Game):
+class OuterCursor(scene.Cursor):
     def run(self) -> None: pass
 
 
@@ -14,7 +13,7 @@ class OuterScene1(scene.Scene): pass
 class OuterScene2(scene.Scene): pass
 
 
-class InnerCursor(game.Game):
+class InnerCursor(scene.Cursor):
     def run(self) -> None: pass
 
 
@@ -23,15 +22,15 @@ class InnerScene2(scene.Scene): pass
 
 
 class OuterData:
-    test1: int = 1,             data_store.Access.game()
-    test2: int = 2,             data_store.Access.game()
-    test3: int = 3,             data_store.Access.static(OuterScene1)
+    test1: int = 1,             data_store.Access.Global()
+    test2: int = 2,             data_store.Access.Global()
+    test3: int = 3,             data_store.Access.Static(OuterScene1)
 
 
 class InnerData:
-    test4: int = 4,             data_store.Access.game()
-    test1: int = 5,             data_store.Access.game()
-    test5: int = 6,             data_store.Access.static(InnerScene1)
+    test4: int = 4,             data_store.Access.Global()
+    test1: int = 5,             data_store.Access.Global()
+    test5: int = 6,             data_store.Access.Static(InnerScene1)
 
 
 cur1 = OuterCursor(OuterData, OuterScene1)
