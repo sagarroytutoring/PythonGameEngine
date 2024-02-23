@@ -10,66 +10,66 @@ import data_store
 
 class Entry(scene.Scene):
     @classmethod
-    def update(cls, game) -> None:
+    def update(cls, game, ctx) -> None:
         print("Update for entry scene")
         game.data[cls].num += 1
 
     @scene.transition_condition("Second")
-    def is1(cls, game):
+    def is1(cls, game, ctx):
         return game.data[cls].num == 1
 
     @scene.transition_condition("Second")
-    def is3(cls, game):
+    def is3(cls, game, ctx):
         return game.data[cls].num == 3
 
     @is1.transition_action
-    def act1(cls, dest, game):
+    def act1(cls, dest, game, ctx):
         print("act1")
 
     @is3.transition_action
     @is1.transition_action
-    def act2(cls, dest, game):
+    def act2(cls, dest, game, ctx):
         print("act2")
 
     @is3.transition_action
-    def act3(cls, dest, game):
+    def act3(cls, dest, game, ctx):
         print("act3")
 
 
 class Second(scene.Scene):
     @classmethod
-    def update(cls, game) -> None:
+    def update(cls, game, ctx) -> None:
         print("Update for second scene")
         game.data[cls].num += 1
 
     @scene.transition_action(dest=Entry)
     @scene.transition_action(src="Third")
-    def act4(src, dest, game):
+    def act4(src, dest, game, ctx):
         print(f"act4 while leaving {src.__name__} and entering {dest.__name__}")
 
     @scene.transition_condition(dest="Entry")
-    def is2(cls, game):
+    def is2(cls, game, ctx):
         return game.data[cls].num == 2
 
     @scene.transition_condition(dest="Third")
-    def is4(cls, game):
+    def is4(cls, game, ctx):
         return game.data[cls].num == 4
 
 
 class Third(scene.Scene):
     @classmethod
-    def update(cls, game):
+    def update(cls, game, ctx):
         print("Done.")
         sys.exit()
 
 
 @scene.transition_action(src="Second", dest=Third)
-def act5(src, dest, game):
+def act5(src, dest, game, ctx):
     print("act5")
 
 
 class GameData:
-    num: int = 0,   data_store.Access.Global()
+    num: int = 0,   data_store.StoreField.Global()
 
 
 class TestGame(scene.Cursor):

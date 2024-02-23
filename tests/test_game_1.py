@@ -9,35 +9,33 @@ import data_store
 from time import time
 import random
 
-
-def rand_prob(prob):
-    return random.random() < prob
+from util.rand import rand_prob
 
 
 class Play(scene.Scene):
     @scene.transition_condition("Death")
-    def dead(cls, game):
+    def dead(cls, game, ctx):
         return game.data[cls].health <= 0
 
     @dead.transition_action
-    def death_msg(src, dest, game):
+    def death_msg(src, dest, game, ctx):
         print("You died")
 
     @scene.transition_condition("Leaderboard")
-    def won(cls, game):
+    def won(cls, game, ctx):
         return game.data[cls].enemies == 0
 
     @won.transition_action
-    def win_msg(src, dest, game):
+    def win_msg(src, dest, game, ctx):
         print("You won!")
 
     @scene.transition_action(src="Leaderboard")
-    def restart_msg(src, dest, game):
+    def restart_msg(src, dest, game, ctx):
         print("Now that you've seen the winners, let's play again.")
 
     @classmethod
-    def leave(cls, game, entering) -> None:
-        super().leave(game, entering)
+    def leave(cls, game, entering, ctx) -> None:
+        super().leave(game, entering, ctx)
         print("Game over")
 
     @staticmethod
@@ -55,7 +53,9 @@ class Play(scene.Scene):
         return first_let
 
     @classmethod
-    def update(cls, game: scene.Cursor) -> None:
+    def update(cls, game, ctx) -> None:
+        super().update(game, ctx)
+
         print(f"There are {game.data[cls].enemies} enemies left")
         choice = cls.choose_attack_defend()
 
@@ -89,22 +89,24 @@ class Death(scene.Scene):
     TIMEOUT = 5
 
     @classmethod
-    def enter(cls, game: scene.Cursor, leaving: Optional[Type[scene.Scene]] = None) -> None:
-        super().enter(game, leaving)
+    def enter(cls, game, leaving, ctx) -> None:
+        super().enter(game, leaving, ctx)
         print("Enjoy 5 seconds of afterlife.")
 
     @scene.transition_condition("Leaderboard")
-    def timed_out(cls, game):
+    def timed_out(cls, game, ctx):
         return time() - game.data[cls].start_time >= cls.TIMEOUT
 
 
 class Leaderboard(scene.Scene):
     @scene.transition_condition(Play)
-    def restart(cls, data):
+    def restart(cls, data, ctx):
         return True
 
     @classmethod
-    def update(cls, game: scene.Cursor) -> None:
+    def update(cls, game, ctx) -> None:
+        super().update(game, ctx)
+
         print("Here are the leaders:")
         for pos, (name, score) in enumerate(game.data[cls].topscores, start=1):
             print(f"{pos}. {name}\t{score}")
@@ -113,20 +115,20 @@ class Leaderboard(scene.Scene):
 
 
 @scene.transition_action(Leaderboard, Death)
-def other_didnt_die(src, dest, game):
+def other_didnt_die(src, dest, game, ctx):
     print("You may have died, but here's some winners who didn't!")
 
 
 class GameData:
-    health: int = 100,                      data_store.Access.Transient(Play)
-    enemies: int = 5,                       data_store.Access.Transient(Play)
-    name: str = "",                         data_store.Access.Global()
-    topscores: dict[str, int] = [],         data_store.Access.Static(Play, Leaderboard)
-    start_time: float = -1,                 data_store.Access.Transient(Play, Death, Leaderboard, factory=lambda _: time())
+    health: int = 100,                      data_store.StoreField.Transient(Play)
+    enemies: int = 5,                       data_store.StoreField.Transient(Play)
+    name: str = "",                         data_store.StoreField.Global()
+    topscores: dict[str, int] = [],         data_store.StoreField.Static(Play, Leaderboard)
+    start_time: float = -1,                 data_store.StoreField.Transient(Play, Death, Leaderboard, factory=lambda _: time())
 
     # You can make config vars for a certain scene by making them Static for that scene only
-    enemy_dmg_range: tuple[int, int] = (5, 10),     data_store.Access.Static(Play)
-    enemy_hit_prob: float = 0.5,                    data_store.Access.Static(Play)
+    enemy_dmg_range: tuple[int, int] = (5, 10),     data_store.StoreField.Static(Play)
+    enemy_hit_prob: float = 0.5,                    data_store.StoreField.Static(Play)
 
 
 class SampleGame(scene.Cursor):

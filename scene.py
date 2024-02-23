@@ -7,8 +7,8 @@ from collections import defaultdict
 import data_store
 
 
-transition_condition_type = Callable[[Type["Scene"], "Cursor"], bool]
-transition_act_type = Callable[[Type["Scene"], Type["Scene"], "Cursor"], None]
+transition_condition_type = Callable[[Type["Scene"], "Cursor", "data_store.Context"], bool]
+transition_act_type = Callable[[Type["Scene"], Type["Scene"], "Cursor", "data_store.Context"], None]
 
 
 class TransitionCondition:
@@ -18,11 +18,19 @@ class TransitionCondition:
         self.act: list[transition_act_type] = []
 
     @classmethod
-    def add(cls, dest: Type[Scene] | str) -> Callable[[transition_condition_type], TransitionCondition]:
+    def add_method(cls, dest: Type[Scene] | str) -> Callable[[transition_condition_type], TransitionCondition]:
         dest = Scene.classes_by_name.get(dest, dest)
         def dec(method: transition_condition_type) -> TransitionCondition:
             return cls(method, dest)
         return dec
+
+    '''
+    @classmethod
+    def add_function(cls, src: Type[Scene] | str, dest: Type[Scene] | str):
+        src = Scene.classes_by_name.get(src, src)
+        dest = Scene.classes_by_name.get(dest, dest)
+        def dec(function: transition_condition_type)
+    '''
 
     def transition_action(self, act: transition_act_type | TransitionContextStore) -> transition_act_type | TransitionContextStore:
         if isinstance(act, TransitionContextStore):
@@ -31,12 +39,12 @@ class TransitionCondition:
             self.act.append(act)
         return act
 
-    def __call__(self, scene: Type[Scene], cursor: Cursor) -> bool:
-        return self.fun(scene, cursor)
+    def __call__(self, scene: Type[Scene], cursor: Cursor, context: data_store.Context) -> bool:
+        return self.fun(scene, cursor, context)
 
 
 def transition_condition(dest: Type["Scene"] | str) -> Callable[[transition_condition_type], TransitionCondition]:
-    return TransitionCondition.add(dest)
+    return TransitionCondition.add_method(dest)
 
 
 class TransitionContextStore:
@@ -151,63 +159,82 @@ class Scene(ABC):
         raise RuntimeError(f"Cannot make instances of scenes")
 
     @classmethod
-    def _detect_transition(cls, cursor: Cursor) -> Type[Scene]:
+    def _detect_transition(cls, cursor: Cursor, context: data_store.Context) -> Type[Scene]:
         for scene, conditions in cls.transition_conditions.items():
             for condition in conditions:
-                if condition(cls, cursor):
+                if condition(cls, cursor, context):
                     for act in condition.act:
-                        act(cls, scene, cursor)
+                        act(cls, scene, cursor, context)
                     return scene
         return cls
 
     @classmethod
-    def _transition_cursor(cls, cursor: Cursor, scene: Optional[Type[Scene]]) -> None:
+    def _transition_cursor(cls, cursor: Cursor, scene: Optional[Type[Scene]], context: data_store.Context) -> None:
         curr_scene = cursor.scene
         if scene == curr_scene:
             return
-        cursor.scene.leave(cursor, scene)
+        cursor.scene.leave(cursor, scene, context)
         cursor.scene = scene
-        cursor.scene.enter(cursor, curr_scene)
+        cursor.scene.enter(cursor, curr_scene, context)
 
     @classmethod
-    def transition(cls, cursor: Cursor) -> None:
+    def transition(cls, cursor: Cursor, context: data_store.Context) -> None:
         """
         Transition function for a scene. Changes Global scene to new scene (or leaves it alone if no transition)
 
         :param cursor: The current Global
         :return: The scene _id of the new scene
         """
-        cls._transition_cursor(cursor, cls._detect_transition(cursor))
+        cls._transition_cursor(cursor, cls._detect_transition(cursor, context), context)
 
     @classmethod
-    def enter(cls, cursor: Cursor, src: Optional[Type[Scene]] = None) -> None:
+    def enter(cls, cursor: Cursor, src: Optional[Type[Scene]], context: data_store.Context) -> None:
         for act in cls.enter_trans_acts[src]:
-            act(src, cls, cursor)
-        cursor.data.transition(cursor, src, cls)
+            act(src, cls, cursor, context)
+        cursor.data.transition(cursor, src, cls, context)
 
     @classmethod
-    def update(cls, cursor: Cursor) -> None:
-        pass
+    def update(cls, cursor: Cursor, context: data_store.Context) -> None:
+        for curs in cursor.data[cls].cursors():
+            curs.update(context)
 
     @classmethod
-    def leave(cls, cursor: Cursor, dest: Type[Scene]) -> None:
+    def leave(cls, cursor: Cursor, dest: Type[Scene], context: data_store.Context) -> None:
         for act in cls.leave_trans_acts[dest]:
-            act(cls, dest, cursor)
+            act(cls, dest, cursor, context)
 
 
 class Cursor(ABC):
-    def __init__(self, storetype: Type, start_scene: Type[Scene]):
+    context_key: str = None
+
+    def __init_subclass__(cls):
+        super().__init_subclass__()
+        if cls.context_key is None:
+            cls.context_key = cls.__name__
+
+    def __init__(self, storetype: Type, start_scene: Type[Scene], subcursors: list[Cursor] = None):
         self.data = data_store.DataStore(storetype)
         self.scene = start_scene
-        self.scene.enter(self)
+        self.subcursors = [] if subcursors is None else subcursors
 
-    def update(self) -> None:
-        # Update Global
-        self.scene.update(self)
+    def update(self, context: Optional[data_store.Context] = None) -> None:
+        context = data_store.Context() if context is None else context
+
+        # Add self to context
+        context.add_cursor(self.context_key, self)
+
+        # Update self
+        self.scene.update(self, context)
+
+        # Update subcursors
+        for curs in self.subcursors:
+            curs.update(context)
 
         # Transition if needed
-        self.scene.transition(self)
+        self.scene.transition(self, context)
 
-    @abstractmethod
+        # Remove self from context
+        context.pop_cursor()
+
     def run(self) -> None:
         pass

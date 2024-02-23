@@ -22,15 +22,15 @@ class InnerScene2(scene.Scene): pass
 
 
 class OuterData:
-    test1: int = 1,             data_store.Access.Global()
-    test2: int = 2,             data_store.Access.Global()
-    test3: int = 3,             data_store.Access.Static(OuterScene1)
+    test1: int = 1,             data_store.StoreField.Global()
+    test2: int = 2,             data_store.StoreField.Global()
+    test3: int = 3,             data_store.StoreField.Static(OuterScene1)
 
 
 class InnerData:
-    test4: int = 4,             data_store.Access.Global()
-    test1: int = 5,             data_store.Access.Global()
-    test5: int = 6,             data_store.Access.Static(InnerScene1)
+    test4: int = 4,             data_store.StoreField.Global()
+    test1: int = 5,             data_store.StoreField.Global()
+    test5: int = 6,             data_store.StoreField.Static(InnerScene1)
 
 
 cur1 = OuterCursor(OuterData, OuterScene1)

@@ -40,17 +40,31 @@ Features To Add:
                     - combining context
                         - within a specific game scene and specific entity scene, attributes can only be accessed based on both
                     - make it more clear what data can be accessed. maybe something to iterate over it to check a specific attribute for debugging reasons
-
-idea for multiple "contexts":
-    - for example, if we're looking at a game that is in a "Play" scene and within that an entity is in the "Dying" scene
-    - in this case, instead of passing a "game" object to all the scene methods like I do now, pass a context obj
-    - call: method(*pargs, contextobj)
+- scene-specific cursors
+    - e.g. if you enter the "play" state, it generates the "entities" in the play state, for example
+    - just like with fields, transient, static, and global cursors within scene
+    - subcursors can be in scene class attribute, or they can be made in datastore class
+        - add to class attribute if you want it to be inherited if you make scene derived classes
+        - add to a cursor data store if you want it to be attached to the cursor, not the scene
+- variable number subcursors for cursor/scene?
+- maybe refactor enter, leave, and update so users don't have to super() every implementation?
+    - would just have to make a real _enter that does the actions, then an enter used in _enter and implemented by user
+- global, transient, and static data are a lot like global, instance, and class variables
+    - maybe make scenes instantiable
+    - and instead of global, transient, and static data
+        - global variables (?)
+        - scene instance variables initialized in init (instead of transient)
+        - scene class variables initialized (instead of static)
+    - mainly I would just need to refactor so that scenes are instantiable and scene instances are used
 
 Features Added:
 - Three types of data:
     - transient scene data (created when entering scene, destroyed when leaving)
     - static scene data (attached to the scene(s), not destroyed when leaving the scene(s) but only accessible when in the scene(s))
     - game data (attached to the game, available to every scene)
+- idea for multiple "contexts":
+    - for example, if we're looking at a game that is in a "Play" scene and within that an entity is in the "Dying" scene
+    - a context obj is passed to all transition actions, conditions, enter, leave, etc for "outer cursor" context info
 
 Misc:
 - No need to be too fancy off the get go:
@@ -78,8 +92,15 @@ Todo:
     - also have to keep track of classes referred to by name and methods for checking if all the strings have been resolved (DONE)
 - make context class and integrate
     - make context class (DONE)
-    - rename game to cursor
-    - integrate context class with scene code (pass that instead of cursor)
-    - rework update to update cursors in cursors
+    - rename game to cursor (DONE)
+    - integrate context class with scene code (pass that instead of cursor) (DONE)
+        - update previous tests (DONE)
+    - rework update to update cursors in cursors (DONE)
+- allow for non-methods to be registered as transition conditions
+- scene-specific cursors
+    - just like with fields, transient, static, and global cursors within scene, integrate with data store system (DONE)
+    - add scene class attribute for subcursors
+    - test
+- add new tests
 - testing, lots of testing
 - repackage as package
