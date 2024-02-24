@@ -6,7 +6,7 @@ from abc import ABC
 import scene
 
 
-factory_type = Callable[["scene.Cursor", "scene.Scene", "Context"], Any]
+factory_type = Callable[["scene.Cursor", Type["scene.Scene"], "Context"], Any]
 class DataStore:
     class _Accessor:
         def __init__(self, store: "DataStore", sc: Type["scene.Scene"]):
@@ -55,8 +55,9 @@ class DataStore:
                     self.transient_factories[field] = access.factory
 
             setattr(self.storage_inst, field, deepcopy(default))
+            setattr(self.storage_inst, field, deepcopy(default))
 
-            access.outer_class.field_action(self, access, field, default, hinttype)
+            access.outer_class.field_action(self, field, default, hinttype, access)
 
     def _assert_access_allowed(self, field: str, sc: Type["scene.Scene"]):
         try:
@@ -112,7 +113,8 @@ class StoreField(ABC):
 
     access_classes = [Static, Transient, Global]
 
-    def field_action(self, store: DataStore, field: str, default: Any, hint: type, access: access_types) -> None:
+    @classmethod
+    def field_action(cls, store: DataStore, field: str, default: Any, hint: type, access: access_types) -> None:
         pass
 
 
@@ -123,16 +125,17 @@ del access_class
 
 
 class StoreCursor(StoreField):
-    def field_action(self, store: DataStore, field: str, default: Any, hint: type, access: access_types) -> None:
+    @classmethod
+    def field_action(cls, store: DataStore, field: str, default: Any, hint: type, access: access_types) -> None:
         if not issubclass(hint, scene.Cursor):
             raise TypeError("StoreCursor can only be applied to fields type hinted with scene.Cursor")
         if not isinstance(default, scene.Cursor):
             raise TypeError("StoreCursor default must be a scene.Cursor object")
 
-        if isinstance(access, self.Transient) or isinstance(access, self.Static):
+        if isinstance(access, cls.Transient) or isinstance(access, cls.Static):
             for sc in access.args:
                 store.cursors_by_scene[sc].append(field)
-        elif isinstance(access, self.Global):
+        elif isinstance(access, cls.Global):
             store.cursors_global.append(field)
 
 

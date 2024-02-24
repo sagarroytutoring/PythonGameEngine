@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Callable, Type, TYPE_CHECKING, Optional
+from typing import Callable, Type, TYPE_CHECKING, Optional, Iterable
 
 from abc import ABC, abstractmethod
 import inspect
@@ -12,10 +12,10 @@ transition_act_type = Callable[[Type["Scene"], Type["Scene"], "Cursor", "data_st
 
 
 class TransitionCondition:
-    def __init__(self, fun: transition_condition_type, dest: Type["Scene"]):
+    def __init__(self, fun: transition_condition_type, dest: Type["Scene"], act: Iterable[transition_act_type] = None):
         self.fun = fun
         self.dest = dest
-        self.act: list[transition_act_type] = []
+        self.act: list[transition_act_type] = [] if act is None else act
 
     @classmethod
     def add_method(cls, dest: Type[Scene] | str) -> Callable[[transition_condition_type], TransitionCondition]:
@@ -24,16 +24,26 @@ class TransitionCondition:
             return cls(method, dest)
         return dec
 
-    '''
     @classmethod
-    def add_function(cls, src: Type[Scene] | str, dest: Type[Scene] | str):
+    def add_function(cls, src: Type[Scene] | str, dest: Type[Scene] | str) -> Callable[[TransitionCondition | TransitionConditionContextStore], TransitionCondition | TransitionConditionContextStore]:
         src = Scene.classes_by_name.get(src, src)
         dest = Scene.classes_by_name.get(dest, dest)
-        def dec(function: transition_condition_type)
-    '''
 
-    def transition_action(self, act: transition_act_type | TransitionContextStore) -> transition_act_type | TransitionContextStore:
-        if isinstance(act, TransitionContextStore):
+        # TODO: add some way to add to source even if src/dest is a string and the scene is not defined yet
+
+        def dec(func: TransitionCondition | TransitionConditionContextStore) -> TransitionConditionContextStore:
+            if not isinstance(func, TransitionConditionContextStore):
+                store = TransitionConditionContextStore(func)
+            else:
+                store = func
+            store.add_context(src, dest)
+            src.transition_conditions[dest].append(cls(store.cond, dest, store.act))
+            return store
+
+        return dec
+
+    def transition_action(self, act: transition_act_type | TransitionActionContextStore) -> transition_act_type | TransitionActionContextStore:
+        if isinstance(act, TransitionActionContextStore):
             self.act.append(act.act)
         else:
             self.act.append(act)
@@ -43,29 +53,67 @@ class TransitionCondition:
         return self.fun(scene, cursor, context)
 
 
-def transition_condition(dest: Type["Scene"] | str) -> Callable[[transition_condition_type], TransitionCondition]:
-    return TransitionCondition.add_method(dest)
+def transition_condition(*args, **kwargs) -> Callable[[TransitionCondition | TransitionConditionContextStore], TransitionCondition | TransitionConditionContextStore]:
+    args = (
+        ([kwargs['src']] if 'src' in kwargs else [])
+        + list(args)
+        + ([kwargs['dest']] if 'dest' in kwargs else [])
+    )
+
+    if len(args) == 2:
+        src, dest = args
+        return TransitionCondition.add_function(src, dest)
+    elif len(args) == 1:
+        dest = args[0]
+        return TransitionCondition.add_method(dest)
+    else:
+        raise ValueError("transition_condition can accept a destination and decorate a method, or can accept a "
+                         f"source and destination and decorate a function. {len(args)} arguments is not allowed.")
 
 
-class TransitionContextStore:
+class TransitionContextStore: pass
+
+
+class TransitionActionContextStore(TransitionContextStore):
     ENTER = 0
     LEAVE = 1
-    types = {ENTER, LEAVE}
 
-    def __init__(self, transition_act_type):
-        self.act = transition_act_type
-        self.contexts: tuple[list[Type["Scene"]], list[Type["Scene"]], list[Type["Scene"]]] = ([], [], [])
+    def __init__(self, act: transition_act_type):
+        self.act = act
+        self.contexts: tuple[list[Type["Scene"]], list[Type["Scene"]]] = ([], [])
 
     def add_context(self, type: int, scene: Type["Scene"]):
-        if type not in self.types:
+        if not 0 <= type < len(self.contexts):
             raise ValueError("Invalid type")
         self.contexts[type].append(scene)
 
-    def __call__(self, src: Type["Scene"], dest: Type["Scene"], cursor: Cursor):
-        self.act(src, dest, cursor)
+    def __call__(self, src: Type["Scene"], dest: Type["Scene"], cursor: Cursor, context: data_store.Context):
+        return self.act(src, dest, cursor, context)
 
 
-def transition_action(src: Type[Scene] | str = None, dest: Type[Scene] | str = None, context: int = TransitionContextStore.LEAVE) -> Callable[[transition_act_type | TransitionContextStore], transition_act_type | TransitionContextStore]:
+class TransitionConditionContextStore(TransitionContextStore):
+    def __init__(self, cond: transition_condition_type):
+        self.cond = cond
+        self.contexts: dict[Type[Scene], Type[Scene]] = {}
+        self.act: list[transition_act_type] = []
+
+    def add_context(self, src: Type["Scene"], dest: Type["Scene"]):
+        if src in self.contexts:
+            raise ValueError(f"Each transition condition can only be associated with a single source. Source {src.__name__} is already associated with this condition.")
+        self.contexts[src] = dest
+
+    def __call__(self, scene: Type["Scene"], cursor: Cursor, context: data_store.Context):
+        return self.cond(scene, cursor, context)
+
+    def transition_action(self, act: transition_act_type | TransitionActionContextStore) -> transition_act_type | TransitionActionContextStore:
+        if isinstance(act, TransitionActionContextStore):
+            self.act.append(act.act)
+        else:
+            self.act.append(act)
+        return act
+
+
+def transition_action(src: Type[Scene] | str = None, dest: Type[Scene] | str = None, context: int = TransitionActionContextStore.LEAVE) -> Callable[[transition_act_type | TransitionActionContextStore], transition_act_type | TransitionActionContextStore]:
     if src is None and dest is None:
         raise ValueError("Have to set src or dest or both")
 
@@ -73,11 +121,13 @@ def transition_action(src: Type[Scene] | str = None, dest: Type[Scene] | str = N
         src = Scene.classes_by_name.get(src, src)
         dest = Scene.classes_by_name.get(dest, dest)
 
-        if context == TransitionContextStore.LEAVE:
+        # TODO: add some way to add to source even if src/dest is a string and the scene is not defined yet
+
+        if context == TransitionActionContextStore.LEAVE:
             def dec(func: transition_act_type) -> transition_act_type:
                 src.leave_trans_acts[dest].append(func)
                 return func
-        elif context == TransitionContextStore.ENTER:
+        elif context == TransitionActionContextStore.ENTER:
             def dec(func: transition_act_type) -> transition_act_type:
                 dest.enter_trans_acts[src].append(func)
                 return func
@@ -89,12 +139,12 @@ def transition_action(src: Type[Scene] | str = None, dest: Type[Scene] | str = N
     # We have determined either src or dest is None
     scene = src if src is not None else dest
     scene = Scene.classes_by_name.get(scene, scene)
-    context = TransitionContextStore.ENTER if src is not None else TransitionContextStore.LEAVE
+    context = TransitionActionContextStore.ENTER if src is not None else TransitionActionContextStore.LEAVE
 
 
-    def dec(method: transition_act_type | TransitionContextStore) -> TransitionContextStore:
-        if not isinstance(method, TransitionContextStore):
-            store = TransitionContextStore(method)
+    def dec(method: transition_act_type | TransitionActionContextStore) -> TransitionActionContextStore:
+        if not isinstance(method, TransitionActionContextStore):
+            store = TransitionActionContextStore(method)
         else:
             store = method
         store.add_context(context, scene)
@@ -122,10 +172,10 @@ class Scene(ABC):
         for name, m in inspect.getmembers(cls):
             if isinstance(m, TransitionCondition):
                 cls.transition_conditions[m.dest].append(m)
-            elif isinstance(m, TransitionContextStore):
-                for scene in m.contexts[TransitionContextStore.ENTER]:
+            elif isinstance(m, TransitionActionContextStore):
+                for scene in m.contexts[TransitionActionContextStore.ENTER]:
                     cls.enter_trans_acts[scene].append(m.act)
-                for scene in m.contexts[TransitionContextStore.LEAVE]:
+                for scene in m.contexts[TransitionActionContextStore.LEAVE]:
                     cls.leave_trans_acts[scene].append(m.act)
 
         # Remove any strings in conditions or actions that refer to this class and replace with class

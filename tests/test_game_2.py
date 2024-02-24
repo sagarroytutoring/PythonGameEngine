@@ -3,6 +3,7 @@
 """
 
 import sys
+from itertools import count
 
 import scene
 import data_store
@@ -56,16 +57,25 @@ class Second(scene.Scene):
         return game.data[cls].num == 4
 
 
-class Third(scene.Scene):
-    @classmethod
-    def update(cls, game, ctx):
-        print("Done.")
-        sys.exit()
+class Third(scene.Scene): pass
 
 
 @scene.transition_action(src="Second", dest=Third)
 def act5(src, dest, game, ctx):
     print("act5")
+
+
+@scene.transition_condition(dest=Third, src='Entry')
+@scene.transition_condition('Third', Entry)
+def biggerThan3(sc, game, stx):
+    return game.data[sc].num > 3
+
+
+@biggerThan3.transition_action
+def end(src, dest, game, ctx):
+    if issubclass(dest, Third):
+        print("Done")
+        sys.exit()
 
 
 class GameData:
@@ -74,7 +84,9 @@ class GameData:
 
 class TestGame(scene.Cursor):
     def run(self):
+        ct = count()
         while True:
+            print("Game update:", next(ct), "starting scene:", self.scene.__name__)
             self.update()
 
 

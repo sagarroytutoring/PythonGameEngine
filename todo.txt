@@ -40,6 +40,7 @@ Features To Add:
                     - combining context
                         - within a specific game scene and specific entity scene, attributes can only be accessed based on both
                     - make it more clear what data can be accessed. maybe something to iterate over it to check a specific attribute for debugging reasons
+
 - scene-specific cursors
     - e.g. if you enter the "play" state, it generates the "entities" in the play state, for example
     - just like with fields, transient, static, and global cursors within scene
@@ -49,13 +50,26 @@ Features To Add:
 - variable number subcursors for cursor/scene?
 - maybe refactor enter, leave, and update so users don't have to super() every implementation?
     - would just have to make a real _enter that does the actions, then an enter used in _enter and implemented by user
-- global, transient, and static data are a lot like global, instance, and class variables
-    - maybe make scenes instantiable
-    - and instead of global, transient, and static data
-        - global variables (?)
-        - scene instance variables initialized in init (instead of transient)
-        - scene class variables initialized (instead of static)
-    - mainly I would just need to refactor so that scenes are instantiable and scene instances are used
+
+- data store system desired features:
+    - data fields can be added from a central location, or can be added to a specific class
+    - supports polymorphism (a subclass will have data fields of superclass)
+    - supports global, static (class attr), and transient (instance attr) data
+    - both cursors and scenes have it
+    - context object: when used, automatically searches scenes and contexts from most to least specific
+    - how to add features to class?
+        - make an inner class?
+        - decorate inner or outer class or both?
+            - decorate both benefits:
+                - inner class can be named anything
+            - decorate outer only benefits:
+                - less verbose
+                - maybe it's bad to let the inner class be named anything if that name isn't going to get used 
+    - maybe: passes static type checker
+    - three ways to use:
+        - scene.data.field
+        - cursor.data.field
+        - context.data.field
 
 Features Added:
 - Three types of data:
@@ -96,7 +110,11 @@ Todo:
     - integrate context class with scene code (pass that instead of cursor) (DONE)
         - update previous tests (DONE)
     - rework update to update cursors in cursors (DONE)
-- allow for non-methods to be registered as transition conditions
+- allow for non-methods to be registered as transition conditions (IN PROGRESS)
+    - Make base class and two different types of context stores
+    - make sure an error is thrown if a function is registered as a condition with the same source twice
+- refactor transition conditions and actions and make a more general base class for decorating function/methods and associating them with classes (IN PROGRESS)
+- allow transition actions and conditions to be defined BEFORE the scene they are associated with
 - scene-specific cursors
     - just like with fields, transient, static, and global cursors within scene, integrate with data store system (DONE)
     - add scene class attribute for subcursors
